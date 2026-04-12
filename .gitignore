@@ -1,0 +1,45 @@
+# =============================================
+# OYO Backend - .gitignore
+# =============================================
+
+# --- Secrets & Environment ---
+.env
+*.env
+firebase-service-account.json
+*-service-account.json
+*.p12
+*.jks
+*.keystore
+
+# --- Maven Build Output ---
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# --- IDE Files ---
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.classpath
+*.project
+*.settings/
+
+# --- OS Files ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Spring Boot ---
+HELP.md
+mvnw
+mvnw.cmd
+.mvn/
+
+# --- Test Reports ---
+surefire-reports/
