@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+*.iml
+.vscode
+
+# Maven build output (builder stage re-runs mvn anyway)
+target/
+
+# Secrets - never bake into image
+.env
+*.env
+firebase-service-account.json
+*-service-account.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docs
+README.md
