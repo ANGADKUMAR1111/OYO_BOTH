@@ -3,9 +3,9 @@ spring:
     name: oyo-backend
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://ep-mute-grass-a1ea8ezq.ap-southeast-1.aws.neon.tech/neondb?sslmode=require}
-    username: ${DATABASE_USERNAME:neondb_owner}
-    password: ${DATABASE_PASSWORD:npg_wAMuex8cK7Zg}
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -28,8 +28,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME:angadkushwaha190270@gmail.com}
-    password: ${MAIL_PASSWORD:nafzwocogqyhsxic}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -61,20 +61,20 @@ server:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:oyoHotelBookingSecretKey2024VeryLongAndSecureKeyForJWTSigningAtLeast256Bits}
+  secret: ${JWT_SECRET}
   expiration: 86400000 # 24 hours in ms
   refresh-expiration: 604800000 # 7 days in ms
 
 # Cloudinary
 cloudinary:
-  cloud-name: ${CLOUDINARY_CLOUD_NAME:dqvschews}
-  api-key: ${CLOUDINARY_API_KEY:887363173919633}
-  api-secret: ${CLOUDINARY_API_SECRET:MMcZrYDpy8xXgKVAc4YOGio_gf8}
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
 
 # Razorpay
 razorpay:
-  key-id: ${RAZORPAY_KEY_ID:rzp_test_ScVrmQ2ipATnS4}
-  key-secret: ${RAZORPAY_KEY_SECRET:oGpMpQ0Hka1dGU6hWzZMx5fi}
+  key-id: ${RAZORPAY_KEY_ID}
+  key-secret: ${RAZORPAY_KEY_SECRET}
   currency: INR
 
 # Firebase
@@ -88,8 +88,8 @@ otp:
 
 # Application
 app:
-  frontend-url: ${FRONTEND_URL:http://localhost:3000}
-  admin-email: ${ADMIN_EMAIL:angadkumar1860053@gmail.com}
+  frontend-url: ${FRONTEND_URL}
+  admin-email: ${ADMIN_EMAIL}
 
 # SpringDoc/Swagger
 springdoc:
