@@ -47,6 +47,9 @@ public class HotelService {
 
     // ── Public API ────────────────────────────────────────────────────────
 
+    @Cacheable(value = "defaultHotels", 
+               key = "{#page, #size, #userId ?: 'anonymous'}", 
+               condition = "#city == null && #query == null && #minPrice == null && #maxPrice == null && #rating == null && #amenities == null && #sort == null && #checkIn == null && #checkOut == null && #guests == null")
     public Page<HotelResponse> searchHotels(String city, String query, Double minPrice, Double maxPrice,
             Integer rating, String amenities, String sort,
             String checkIn, String checkOut, Integer guests,
@@ -79,6 +82,7 @@ public class HotelService {
         return result.get(0);
     }
 
+    @Cacheable(value = "featuredHotels", key = "{#page, #size, #userId ?: 'anonymous'}")
     public Page<HotelResponse> getFeaturedHotels(int page, int size, String userId) {
         Pageable pageable = PageRequest.of(page, size);
         List<Hotel> hotels = hotelRepository.findByIsFeaturedTrueAndIsApprovedTrue(pageable).getContent();
@@ -111,6 +115,11 @@ public class HotelService {
     }
 
     @Transactional
+    @Caching(evict = { 
+        @CacheEvict(value = "defaultHotels", allEntries = true), 
+        @CacheEvict(value = "featuredHotels", allEntries = true),
+        @CacheEvict(value = "cities", allEntries = true)
+    })
     public HotelResponse createHotel(HotelRequest request, String hostId) {
         Hotel hotel = Hotel.builder()
                 .name(request.getName())
@@ -134,6 +143,11 @@ public class HotelService {
     }
 
     @Transactional
+    @Caching(evict = { 
+        @CacheEvict(value = "defaultHotels", allEntries = true), 
+        @CacheEvict(value = "featuredHotels", allEntries = true),
+        @CacheEvict(value = "cities", allEntries = true)
+    })
     public HotelResponse updateHotel(String hotelId, HotelRequest request, String userId) {
         Hotel hotel = hotelRepository.findById(hotelId)
                 .orElseThrow(() -> new ApiException("Hotel not found", HttpStatus.NOT_FOUND));
@@ -153,6 +167,11 @@ public class HotelService {
         return toResponseList(List.of(saved), userId, null).get(0);
     }
 
+    @Caching(evict = { 
+        @CacheEvict(value = "defaultHotels", allEntries = true), 
+        @CacheEvict(value = "featuredHotels", allEntries = true),
+        @CacheEvict(value = "cities", allEntries = true)
+    })
     public void deleteHotel(String hotelId) {
         if (!hotelRepository.existsById(hotelId)) {
             throw new ApiException("Hotel not found", HttpStatus.NOT_FOUND);
@@ -161,6 +180,10 @@ public class HotelService {
     }
 
     @Transactional
+    @Caching(evict = { 
+        @CacheEvict(value = "defaultHotels", allEntries = true), 
+        @CacheEvict(value = "featuredHotels", allEntries = true)
+    })
     public HotelResponse addImage(String hotelId, String imageUrl, String userId) {
         Hotel hotel = hotelRepository.findById(hotelId)
                 .orElseThrow(() -> new ApiException("Hotel not found", HttpStatus.NOT_FOUND));

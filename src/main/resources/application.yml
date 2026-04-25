@@ -49,7 +49,11 @@ spring:
       fail-on-unknown-properties: false
 
   cache:
-    type: simple
+    type: redis
+
+  data:
+    redis:
+      url: ${REDIS_URL}
 
 server:
   port: ${PORT:8080}
