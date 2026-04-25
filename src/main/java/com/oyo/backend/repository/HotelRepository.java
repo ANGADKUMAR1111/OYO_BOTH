@@ -22,10 +22,20 @@ public interface HotelRepository extends JpaRepository<Hotel, String> {
     Page<Hotel> findByHostId(String hostId, Pageable pageable);
 
     @Query("SELECT h FROM Hotel h WHERE h.isApproved = true AND " +
-            "(LOWER(h.city) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-            " LOWER(h.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-            " LOWER(h.address) LIKE LOWER(CONCAT('%', :query, '%')))")
-    Page<Hotel> searchHotels(@Param("query") String query, Pageable pageable);
+            "(:query IS NULL OR :query = '' OR LOWER(h.city) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) OR " +
+            " LOWER(h.name) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) OR " +
+            " LOWER(h.address) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))) AND " +
+            "(:city IS NULL OR :city = '' OR LOWER(h.city) = LOWER(:city)) AND " +
+            "(:minP IS NULL OR (SELECT COALESCE(MIN(r.pricePerNight), 0) FROM Room r WHERE r.hotelId = h.id) >= :minP) AND " +
+            "(:maxP IS NULL OR (SELECT COALESCE(MIN(r.pricePerNight), 999999) FROM Room r WHERE r.hotelId = h.id) <= :maxP) AND " +
+            "(:minR IS NULL OR (SELECT COALESCE(AVG(rev.rating), 0.0) FROM Review rev WHERE rev.hotelId = h.id) >= :minR)")
+    Page<Hotel> searchHotelsOptimized(
+            @Param("query") String query,
+            @Param("city") String city,
+            @Param("minP") Double minPrice,
+            @Param("maxP") Double maxPrice,
+            @Param("minR") Integer rating,
+            Pageable pageable);
 
     @Query("SELECT DISTINCT h.city FROM Hotel h WHERE h.isApproved = true ORDER BY h.city")
     List<String> findAllCities();

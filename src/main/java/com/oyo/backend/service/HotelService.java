@@ -54,20 +54,19 @@ public class HotelService {
         Sort sortOrder = buildSort(sort);
         Pageable pageable = PageRequest.of(page, size, sortOrder);
 
-        Page<Hotel> hotels;
-        if (query != null && !query.isBlank()) {
-            hotels = hotelRepository.searchHotels(query, pageable);
-        } else if (city != null && !city.isBlank()) {
-            hotels = hotelRepository.findByCityIgnoreCaseAndIsApprovedTrue(city, pageable);
-        } else {
-            hotels = hotelRepository.findByIsApprovedTrue(pageable);
-        }
+        // Fetch paginated AND filtered directly from the database!
+        Page<Hotel> hotels = hotelRepository.searchHotelsOptimized(query, city, minPrice, maxPrice, rating, pageable);
 
-        List<HotelResponse> responseList = toResponseList(hotels.getContent(), userId, null)
-                .stream()
-                .filter(h -> filterByPrice(h, minPrice, maxPrice))
-                .filter(h -> filterByRating(h, rating))
+        List<HotelResponse> responseList = toResponseList(hotels.getContent(), userId, null);
+
+        // Advanced local filtering for amenities only, since that is a comma-separated list
+        // which varies structure heavily so usually handled locally (or via strict jsonb queries).
+        if (amenities != null && !amenities.isBlank()) {
+            List<String> required = Arrays.asList(amenities.split(","));
+            responseList = responseList.stream()
+                .filter(h -> h.getAmenities() != null && new HashSet<>(h.getAmenities()).containsAll(required))
                 .collect(Collectors.toList());
+        }
 
         return new PageImpl<>(responseList, pageable, hotels.getTotalElements());
     }
