@@ -5,11 +5,12 @@ import com.oyo.backend.dto.hotel.HotelResponse;
 import com.oyo.backend.entity.Hotel;
 import com.oyo.backend.exception.ApiException;
 import com.oyo.backend.repository.HotelRepository;
-import com.oyo.backend.repository.ReviewRepository;
-import com.oyo.backend.repository.RoomRepository;
 import com.oyo.backend.repository.WishlistRepository;
 import com.oyo.backend.util.HaversineUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -20,22 +21,36 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * HotelService — N+1-free implementation.
+ *
+ * OLD approach: for a page of N hotels → 4 DB queries per hotel = 4N extra queries.
+ * NEW approach: 4 bulk queries total regardless of page size.
+ *
+ * For a 20-hotel page: 81 queries → 5 queries. ~16× fewer DB round-trips.
+ */
 @Service
 @RequiredArgsConstructor
 public class HotelService {
 
     private final HotelRepository hotelRepository;
-    private final ReviewRepository reviewRepository;
-    private final RoomRepository roomRepository;
     private final WishlistRepository wishlistRepository;
+
+    // ── Public API ────────────────────────────────────────────────────────
 
     public Page<HotelResponse> searchHotels(String city, String query, Double minPrice, Double maxPrice,
             Integer rating, String amenities, String sort,
             String checkIn, String checkOut, Integer guests,
             int page, int size, String userId) {
+
         Sort sortOrder = buildSort(sort);
         Pageable pageable = PageRequest.of(page, size, sortOrder);
 
@@ -48,8 +63,8 @@ public class HotelService {
             hotels = hotelRepository.findByIsApprovedTrue(pageable);
         }
 
-        List<HotelResponse> responseList = hotels.getContent().stream()
-                .map(h -> toResponse(h, userId, null))
+        List<HotelResponse> responseList = toResponseList(hotels.getContent(), userId, null)
+                .stream()
                 .filter(h -> filterByPrice(h, minPrice, maxPrice))
                 .filter(h -> filterByRating(h, rating))
                 .collect(Collectors.toList());
@@ -60,25 +75,38 @@ public class HotelService {
     public HotelResponse getHotelById(String id, String userId) {
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() -> new ApiException("Hotel not found", HttpStatus.NOT_FOUND));
-        return toResponse(hotel, userId, null);
+        List<HotelResponse> result = toResponseList(List.of(hotel), userId, null);
+        return result.get(0);
     }
 
     public Page<HotelResponse> getFeaturedHotels(int page, int size, String userId) {
         Pageable pageable = PageRequest.of(page, size);
-        return hotelRepository.findByIsFeaturedTrueAndIsApprovedTrue(pageable)
-                .map(h -> toResponse(h, userId, null));
+        List<Hotel> hotels = hotelRepository.findByIsFeaturedTrueAndIsApprovedTrue(pageable).getContent();
+        List<HotelResponse> responses = toResponseList(hotels, userId, null);
+        return new PageImpl<>(responses, pageable,
+                hotelRepository.findByIsFeaturedTrueAndIsApprovedTrue(pageable).getTotalElements());
     }
 
     public List<HotelResponse> getNearbyHotels(double lat, double lng, double radiusKm, String userId) {
         List<Hotel> allHotels = hotelRepository.findByIsApprovedTrue(PageRequest.of(0, 200)).getContent();
-        return allHotels.stream()
+
+        // Compute distances first (cheap in-memory), then filter to the radius subset
+        List<Hotel> inRadius = allHotels.stream()
                 .filter(h -> h.getLatitude() != null && h.getLongitude() != null)
-                .map(h -> {
-                    double dist = HaversineUtil.distance(lat, lng, h.getLatitude(), h.getLongitude());
-                    return toResponse(h, userId, dist);
-                })
-                .filter(h -> h.getDistanceKm() != null && h.getDistanceKm() <= radiusKm)
-                .sorted((a, b) -> Double.compare(a.getDistanceKm(), b.getDistanceKm()))
+                .filter(h -> HaversineUtil.distance(lat, lng, h.getLatitude(), h.getLongitude()) <= radiusKm)
+                .collect(Collectors.toList());
+
+        // Build responses in bulk (no N+1)
+        Map<String, Double> distances = new HashMap<>();
+        for (Hotel h : inRadius) {
+            distances.put(h.getId(), HaversineUtil.distance(lat, lng, h.getLatitude(), h.getLongitude()));
+        }
+
+        return toResponseList(inRadius, userId, distances)
+                .stream()
+                .sorted((a, b) -> Double.compare(
+                        a.getDistanceKm() != null ? a.getDistanceKm() : Double.MAX_VALUE,
+                        b.getDistanceKm() != null ? b.getDistanceKm() : Double.MAX_VALUE))
                 .collect(Collectors.toList());
     }
 
@@ -101,7 +129,8 @@ public class HotelService {
                 .isApproved(false)
                 .isFeatured(false)
                 .build();
-        return toResponse(hotelRepository.save(hotel), hostId, null);
+        Hotel saved = hotelRepository.save(hotel);
+        return toResponseList(List.of(saved), hostId, null).get(0);
     }
 
     @Transactional
@@ -118,11 +147,10 @@ public class HotelService {
         hotel.setLatitude(request.getLatitude());
         hotel.setLongitude(request.getLongitude());
         hotel.setStarRating(request.getStarRating());
-        if (request.getAmenities() != null)
-            hotel.setAmenities(request.getAmenities());
-        if (request.getImages() != null)
-            hotel.setImages(request.getImages());
-        return toResponse(hotelRepository.save(hotel), userId, null);
+        if (request.getAmenities() != null) hotel.setAmenities(request.getAmenities());
+        if (request.getImages() != null) hotel.setImages(request.getImages());
+        Hotel saved = hotelRepository.save(hotel);
+        return toResponseList(List.of(saved), userId, null).get(0);
     }
 
     public void deleteHotel(String hotelId) {
@@ -137,9 +165,12 @@ public class HotelService {
         Hotel hotel = hotelRepository.findById(hotelId)
                 .orElseThrow(() -> new ApiException("Hotel not found", HttpStatus.NOT_FOUND));
         hotel.getImages().add(imageUrl);
-        return toResponse(hotelRepository.save(hotel), userId, null);
+        Hotel saved = hotelRepository.save(hotel);
+        return toResponseList(List.of(saved), userId, null).get(0);
     }
 
+    /** Cities list is stable — cache it in the JVM for the lifetime of the process. */
+    @Cacheable("cities")
     public List<String> getCities() {
         return hotelRepository.findAllCities();
     }
@@ -148,65 +179,121 @@ public class HotelService {
         return hotelRepository.searchCities(query);
     }
 
-    private HotelResponse toResponse(Hotel hotel, String userId, Double distanceKm) {
-        Double avgRating = reviewRepository.getAverageRating(hotel.getId());
-        Long totalReviews = reviewRepository.getReviewCount(hotel.getId());
-        Double minPrice = roomRepository.findByHotelId(hotel.getId()).stream()
-                .mapToDouble(r -> r.getPricePerNight())
-                .min().orElse(0.0);
-        boolean wishlisted = userId != null && wishlistRepository.existsByUserIdAndHotelId(userId, hotel.getId());
+    // ── Core: bulk response builder (eliminates N+1) ──────────────────────
 
-        return HotelResponse.builder()
-                .id(hotel.getId())
-                .name(hotel.getName())
-                .description(hotel.getDescription())
-                .address(hotel.getAddress())
-                .city(hotel.getCity())
-                .state(hotel.getState())
-                .country(hotel.getCountry())
-                .pincode(hotel.getPincode())
-                .latitude(hotel.getLatitude())
-                .longitude(hotel.getLongitude())
-                .starRating(hotel.getStarRating())
-                .amenities(hotel.getAmenities())
-                .images(hotel.getImages())
-                .hostId(hotel.getHostId())
-                .isApproved(hotel.getIsApproved())
-                .isFeatured(hotel.getIsFeatured())
-                .averageRating(avgRating != null ? Math.round(avgRating * 10.0) / 10.0 : 0.0)
-                .totalReviews(totalReviews != null ? totalReviews.intValue() : 0)
-                .minPrice(minPrice)
-                .isWishlisted(wishlisted)
-                .distanceKm(distanceKm != null ? Math.round(distanceKm * 100.0) / 100.0 : null)
-                .createdAt(hotel.getCreatedAt())
-                .build();
+    /**
+     * Converts a list of Hotel entities into HotelResponse DTOs using exactly:
+     *   1 query for avg ratings (all hotels)
+     *   1 query for review counts (all hotels)
+     *   1 query for min prices  (all hotels)
+     *   1 query for wishlist IDs (if userId != null)
+     *
+     * Total = 4 queries regardless of how many hotels are in the list.
+     *
+     * @param hotels     the hotels to convert
+     * @param userId     current user id (may be null for unauthenticated requests)
+     * @param distances  optional map of hotelId → distanceKm; null when not a nearby search
+     */
+    private List<HotelResponse> toResponseList(List<Hotel> hotels, String userId,
+                                               Map<String, Double> distances) {
+        if (hotels == null || hotels.isEmpty()) return Collections.emptyList();
+
+        List<String> ids = hotels.stream().map(Hotel::getId).collect(Collectors.toList());
+
+        // ── 1 query: average ratings ─────────────────────────────────────
+        Map<String, Double> avgRatings = new HashMap<>();
+        hotelRepository.findAverageRatingsForHotels(ids)
+                .forEach(row -> avgRatings.put((String) row[0], toDouble(row[1])));
+
+        // ── 1 query: review counts ───────────────────────────────────────
+        Map<String, Long> reviewCounts = new HashMap<>();
+        hotelRepository.findReviewCountsForHotels(ids)
+                .forEach(row -> reviewCounts.put((String) row[0], toLong(row[1])));
+
+        // ── 1 query: min room prices ─────────────────────────────────────
+        Map<String, Double> minPrices = new HashMap<>();
+        hotelRepository.findMinPricesForHotels(ids)
+                .forEach(row -> minPrices.put((String) row[0], toDouble(row[1])));
+
+        // ── 1 query: wishlisted hotel ids ────────────────────────────────
+        Set<String> wishlistedIds = new HashSet<>();
+        if (userId != null) {
+            wishlistedIds.addAll(wishlistRepository.findHotelIdsByUserId(userId));
+        }
+
+        // ── Build responses in-memory (zero additional DB calls) ─────────
+        List<HotelResponse> result = new ArrayList<>(hotels.size());
+        for (Hotel hotel : hotels) {
+            String id = hotel.getId();
+            Double avg = avgRatings.getOrDefault(id, 0.0);
+            double distKm = distances != null ? distances.getOrDefault(id, 0.0) : 0.0;
+
+            result.add(HotelResponse.builder()
+                    .id(id)
+                    .name(hotel.getName())
+                    .description(hotel.getDescription())
+                    .address(hotel.getAddress())
+                    .city(hotel.getCity())
+                    .state(hotel.getState())
+                    .country(hotel.getCountry())
+                    .pincode(hotel.getPincode())
+                    .latitude(hotel.getLatitude())
+                    .longitude(hotel.getLongitude())
+                    .starRating(hotel.getStarRating())
+                    .amenities(hotel.getAmenities())
+                    .images(hotel.getImages())
+                    .hostId(hotel.getHostId())
+                    .isApproved(hotel.getIsApproved())
+                    .isFeatured(hotel.getIsFeatured())
+                    .averageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0)
+                    .totalReviews(reviewCounts.getOrDefault(id, 0L).intValue())
+                    .minPrice(minPrices.getOrDefault(id, 0.0))
+                    .isWishlisted(wishlistedIds.contains(id))
+                    .distanceKm(distances != null
+                            ? Math.round(distKm * 100.0) / 100.0
+                            : null)
+                    .createdAt(hotel.getCreatedAt())
+                    .build());
+        }
+        return result;
     }
 
+    // ── Helpers ───────────────────────────────────────────────────────────
+
     private Sort buildSort(String sort) {
-        if (sort == null)
-            return Sort.by("createdAt").descending();
+        if (sort == null) return Sort.by("createdAt").descending();
         return switch (sort.toLowerCase()) {
-            case "price_asc" -> Sort.by("createdAt").ascending();
+            case "price_asc"  -> Sort.by("createdAt").ascending();
             case "price_desc" -> Sort.by("createdAt").descending();
-            case "rating" -> Sort.by("starRating").descending();
-            case "newest" -> Sort.by("createdAt").descending();
-            default -> Sort.by("createdAt").descending();
+            case "rating"     -> Sort.by("starRating").descending();
+            case "newest"     -> Sort.by("createdAt").descending();
+            default           -> Sort.by("createdAt").descending();
         };
     }
 
     private boolean filterByPrice(HotelResponse h, Double minPrice, Double maxPrice) {
-        if (h.getMinPrice() == null)
-            return true;
-        if (minPrice != null && h.getMinPrice() < minPrice)
-            return false;
-        if (maxPrice != null && h.getMinPrice() > maxPrice)
-            return false;
+        if (h.getMinPrice() == null) return true;
+        if (minPrice != null && h.getMinPrice() < minPrice) return false;
+        if (maxPrice != null && h.getMinPrice() > maxPrice) return false;
         return true;
     }
 
     private boolean filterByRating(HotelResponse h, Integer rating) {
-        if (rating == null)
-            return true;
+        if (rating == null) return true;
         return h.getAverageRating() != null && h.getAverageRating() >= rating;
+    }
+
+    private static double toDouble(Object value) {
+        if (value == null) return 0.0;
+        if (value instanceof Double d) return d;
+        if (value instanceof Number n) return n.doubleValue();
+        return 0.0;
+    }
+
+    private static long toLong(Object value) {
+        if (value == null) return 0L;
+        if (value instanceof Long l) return l;
+        if (value instanceof Number n) return n.longValue();
+        return 0L;
     }
 }

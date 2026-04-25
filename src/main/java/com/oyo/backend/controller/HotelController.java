@@ -30,7 +30,7 @@ public class HotelController {
     private final UserRepository userRepository;
 
     private String getUserId(Authentication auth) {
-        if (auth == null)
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName()))
             return null;
         return userRepository.findByEmail(auth.getName()).map(User::getId).orElse(null);
     }

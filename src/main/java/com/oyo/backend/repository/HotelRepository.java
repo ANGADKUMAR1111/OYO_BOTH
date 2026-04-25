@@ -39,4 +39,18 @@ public interface HotelRepository extends JpaRepository<Hotel, String> {
 
     @Query("SELECT h FROM Hotel h WHERE h.isApproved = false ORDER BY h.createdAt DESC")
     List<Hotel> findPendingHotels();
+
+    // ── Bulk aggregate queries (eliminate N+1) ────────────────────────────
+
+    /** Returns [hotelId, avgRating] for all hotels in the given id list. */
+    @Query("SELECT r.hotelId, AVG(r.rating) FROM Review r WHERE r.hotelId IN :ids GROUP BY r.hotelId")
+    List<Object[]> findAverageRatingsForHotels(@Param("ids") List<String> ids);
+
+    /** Returns [hotelId, reviewCount] for all hotels in the given id list. */
+    @Query("SELECT r.hotelId, COUNT(r) FROM Review r WHERE r.hotelId IN :ids GROUP BY r.hotelId")
+    List<Object[]> findReviewCountsForHotels(@Param("ids") List<String> ids);
+
+    /** Returns [hotelId, minPricePerNight] for all hotels in the given id list. */
+    @Query("SELECT r.hotelId, MIN(r.pricePerNight) FROM Room r WHERE r.hotelId IN :ids GROUP BY r.hotelId")
+    List<Object[]> findMinPricesForHotels(@Param("ids") List<String> ids);
 }
