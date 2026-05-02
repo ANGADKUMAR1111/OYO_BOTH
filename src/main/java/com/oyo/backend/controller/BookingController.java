@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import com.oyo.backend.dto.PageResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -38,11 +39,11 @@ public class BookingController {
     }
 
     @GetMapping("/user")
-    public ResponseEntity<ApiResponse<Page<BookingResponse>>> getUserBookings(
+    public ResponseEntity<ApiResponse<PageResponse<BookingResponse>>> getUserBookings(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.success(bookingService.getUserBookings(getUserId(auth), page, size)));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(bookingService.getUserBookings(getUserId(auth), page, size))));
     }
 
     @GetMapping("/{id}")
@@ -59,10 +60,10 @@ public class BookingController {
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Page<BookingResponse>>> getAllBookings(
+    public ResponseEntity<ApiResponse<PageResponse<BookingResponse>>> getAllBookings(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ApiResponse.success(bookingService.getAllBookings(page, size)));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(bookingService.getAllBookings(page, size))));
     }
 
     @PutMapping("/{id}/status")

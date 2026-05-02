@@ -6,6 +6,7 @@ import com.oyo.backend.service.CouponService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import com.oyo.backend.dto.PageResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -29,10 +30,10 @@ public class CouponController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Page<Coupon>>> getAllCoupons(
+    public ResponseEntity<ApiResponse<PageResponse<Coupon>>> getAllCoupons(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ApiResponse.success(couponService.getAllCoupons(page, size)));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(couponService.getAllCoupons(page, size))));
     }
 
     @PostMapping

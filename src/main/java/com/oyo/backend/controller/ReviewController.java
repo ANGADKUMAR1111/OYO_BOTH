@@ -8,6 +8,7 @@ import com.oyo.backend.service.ReviewService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import com.oyo.backend.dto.PageResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -33,20 +34,20 @@ public class ReviewController {
     }
 
     @GetMapping("/hotels/{hotelId}/reviews")
-    public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> getHotelReviews(
+    public ResponseEntity<ApiResponse<PageResponse<Map<String, Object>>>> getHotelReviews(
             @PathVariable String hotelId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.success(reviewService.getHotelReviews(hotelId, page, size)));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(reviewService.getHotelReviews(hotelId, page, size))));
     }
 
     @GetMapping("/reviews/user")
-    public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> getMyReviews(
+    public ResponseEntity<ApiResponse<PageResponse<Map<String, Object>>>> getMyReviews(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             Authentication auth) {
         String userId = getUserId(auth);
-        return ResponseEntity.ok(ApiResponse.success(reviewService.getUserReviews(userId, page, size)));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(reviewService.getUserReviews(userId, page, size))));
     }
 
     @PutMapping("/reviews/{id}")
