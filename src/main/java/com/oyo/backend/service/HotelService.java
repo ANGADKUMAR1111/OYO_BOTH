@@ -51,9 +51,11 @@ public class HotelService {
 
     @Lazy @Autowired private HotelService self;
 
+    @Transactional(readOnly = true)
     @Cacheable(value = "defaultHotels", 
                key = "'search:' + #page + ':' + #size + ':' + #city + ':' + #sort", 
-               condition = "#query == null && #minPrice == null && #maxPrice == null && #rating == null && #amenities == null && #checkIn == null && #checkOut == null && #guests == null")
+               condition = "#query == null && #minPrice == null && #maxPrice == null && #rating == null && #amenities == null && #checkIn == null && #checkOut == null && #guests == null",
+               sync = true)
     public Page<HotelResponse> searchHotelsInternal(String city, String query, Double minPrice, Double maxPrice,
             Integer rating, String sort, int page, int size) {
         
@@ -97,6 +99,7 @@ public class HotelService {
         return new PageImpl<>(responseList, cachedPage.getPageable(), cachedPage.getTotalElements());
     }
 
+    @Transactional(readOnly = true)
     public HotelResponse getHotelById(String id, String userId) {
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() -> new ApiException("Hotel not found", HttpStatus.NOT_FOUND));
@@ -104,7 +107,8 @@ public class HotelService {
         return result.get(0);
     }
 
-    @Cacheable(value = "featuredHotels", key = "'featured:' + #page + ':' + #size")
+    @Transactional(readOnly = true)
+    @Cacheable(value = "featuredHotels", key = "'featured:' + #page + ':' + #size", sync = true)
     public Page<HotelResponse> getFeaturedHotelsInternal(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.unsorted());
         Page<Object[]> rows = hotelRepository.findFeaturedHotelsRaw(pageable);
@@ -130,6 +134,7 @@ public class HotelService {
         return new PageImpl<>(responses, cachedPage.getPageable(), cachedPage.getTotalElements());
     }
 
+    @Transactional(readOnly = true)
     public List<HotelResponse> getNearbyHotels(double lat, double lng, double radiusKm, String userId) {
         List<Hotel> allHotels = hotelRepository.findByIsApprovedTrue(PageRequest.of(0, 200)).getContent();
 
@@ -262,8 +267,8 @@ public class HotelService {
                 .latitude(hotel.getLatitude())
                 .longitude(hotel.getLongitude())
                 .starRating(hotel.getStarRating())
-                .amenities(hotel.getAmenities())
-                .images(hotel.getImages())
+                .amenities(hotel.getAmenities() != null ? new ArrayList<>(hotel.getAmenities()) : new ArrayList<>())
+                .images(hotel.getImages() != null ? new ArrayList<>(hotel.getImages()) : new ArrayList<>())
                 .hostId(hotel.getHostId())
                 .isApproved(hotel.getIsApproved())
                 .isFeatured(hotel.getIsFeatured())

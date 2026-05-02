@@ -1,0 +1,1 @@
+import io.github.bucket4j.*; import java.time.Duration; public class T { public static void main(String[] args) { Bandwidth b = Bandwidth.builder().capacity(100).refillGreedy(10, Duration.ofSeconds(1)).initialTokens(100).build(); Bucket bucket = Bucket.builder().addLimit(b).build(); System.out.println(bucket.getAvailableTokens()); } }  
