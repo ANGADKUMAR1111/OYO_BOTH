@@ -20,32 +20,12 @@ import java.util.Map;
 @Tag(name = "Admin", description = "Admin dashboard and management")
 public class AdminController {
 
-    private final UserRepository userRepository;
+    private final com.oyo.backend.service.AdminService adminService;
     private final HotelRepository hotelRepository;
-    private final BookingRepository bookingRepository;
 
     @GetMapping("/stats")
-    @org.springframework.cache.annotation.Cacheable(value = "adminStats", key = "'global'")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() throws Exception {
-        java.util.concurrent.CompletableFuture<Long> usersFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> userRepository.count());
-        java.util.concurrent.CompletableFuture<Long> hotelsFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> hotelRepository.countByIsApprovedTrue());
-        java.util.concurrent.CompletableFuture<Long> pendingFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> hotelRepository.countByIsApprovedFalse());
-        java.util.concurrent.CompletableFuture<Long> bookingsFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> bookingRepository.count());
-        java.util.concurrent.CompletableFuture<Long> paidFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> bookingRepository.getPaidBookingsCount());
-        java.util.concurrent.CompletableFuture<Double> revenueFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> bookingRepository.getTotalRevenue());
-
-        java.util.concurrent.CompletableFuture.allOf(usersFuture, hotelsFuture, pendingFuture, bookingsFuture, paidFuture, revenueFuture).join();
-
-        Long paidBookings = paidFuture.get();
-        Double totalRevenue = revenueFuture.get();
-
-        Map<String, Object> stats = Map.of(
-                "totalUsers", usersFuture.get(),
-                "totalHotels", hotelsFuture.get(),
-                "pendingApprovals", pendingFuture.get(),
-                "totalBookings", bookingsFuture.get(),
-                "paidBookings", paidBookings != null ? paidBookings : 0L,
-                "totalRevenue", totalRevenue != null ? totalRevenue : 0.0);
+        Map<String, Object> stats = adminService.getStats();
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
