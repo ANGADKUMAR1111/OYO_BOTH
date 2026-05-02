@@ -114,7 +114,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
         }
 
-        String ip = getClientIp(request);
         String bucketKey = (isPublic ? "pub:" : "str:") + ip;
         final boolean isPublicFinal = isPublic;   // effectively-final copy for the lambda
 
