@@ -18,7 +18,7 @@ public class SearchController {
     private final HotelService hotelService;
 
     @GetMapping("/suggestions")
-    public ResponseEntity<ApiResponse<List<String>>> getSuggestions(@RequestParam String query) {
+    public ResponseEntity<ApiResponse<List<String>>> getSuggestions(@RequestParam(defaultValue = "") String query) {
         return ResponseEntity.ok(ApiResponse.success(hotelService.searchCitySuggestions(query)));
     }
 
