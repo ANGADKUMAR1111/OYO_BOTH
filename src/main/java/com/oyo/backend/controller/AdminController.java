@@ -24,7 +24,7 @@ public class AdminController {
     private final HotelRepository hotelRepository;
 
     @GetMapping("/stats")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() throws Exception {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
         Map<String, Object> stats = adminService.getStats();
         return ResponseEntity.ok(ApiResponse.success(stats));
     }

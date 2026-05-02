@@ -2,13 +2,18 @@ package com.oyo.backend.dto.hotel;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
 @Builder(toBuilder = true)
-public class HotelResponse {
+@NoArgsConstructor
+@AllArgsConstructor
+public class HotelResponse implements Serializable {
     private String id;
     private String name;
     private String description;
