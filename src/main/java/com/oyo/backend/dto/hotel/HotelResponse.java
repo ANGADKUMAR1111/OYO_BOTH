@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 public class HotelResponse {
     private String id;
     private String name;

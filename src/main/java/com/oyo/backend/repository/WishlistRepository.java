@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface WishlistRepository extends JpaRepository<Wishlist, String> {
@@ -22,4 +23,7 @@ public interface WishlistRepository extends JpaRepository<Wishlist, String> {
     /** Fetch all wishlisted hotel IDs for a user in one query — eliminates N wishlist lookups. */
     @Query("SELECT w.hotelId FROM Wishlist w WHERE w.userId = :userId")
     List<String> findHotelIdsByUserId(@Param("userId") String userId);
+
+    @Query("SELECT w.hotelId FROM Wishlist w WHERE w.userId = :userId AND w.hotelId IN :hotelIds")
+    Set<String> findWishlistedHotelIds(@Param("userId") String userId, @Param("hotelIds") Set<String> hotelIds);
 }

@@ -21,21 +21,63 @@ public interface HotelRepository extends JpaRepository<Hotel, String> {
 
     Page<Hotel> findByHostId(String hostId, Pageable pageable);
 
-    @Query("SELECT h FROM Hotel h WHERE h.isApproved = true AND " +
-            "(:query IS NULL OR :query = '' OR LOWER(h.city) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) OR " +
-            " LOWER(h.name) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) OR " +
-            " LOWER(h.address) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))) AND " +
-            "(:city IS NULL OR :city = '' OR LOWER(h.city) = LOWER(:city)) AND " +
-            "(:minP IS NULL OR (SELECT COALESCE(MIN(r.pricePerNight), 0) FROM Room r WHERE r.hotelId = h.id) >= :minP) AND " +
-            "(:maxP IS NULL OR (SELECT COALESCE(MIN(r.pricePerNight), 999999) FROM Room r WHERE r.hotelId = h.id) <= :maxP) AND " +
-            "(:minR IS NULL OR (SELECT COALESCE(AVG(rev.rating), 0.0) FROM Review rev WHERE rev.hotelId = h.id) >= :minR)")
-    Page<Hotel> searchHotelsOptimized(
+    @Query(value = """
+        SELECT h,
+               MIN(r.pricePerNight)  AS minPrice,
+               AVG(rv.rating)        AS avgRating,
+               COUNT(rv)             AS reviewCount
+        FROM   Hotel h
+               LEFT JOIN Room r ON r.hotelId = h.id
+               LEFT JOIN Review rv ON rv.hotelId = h.id
+        WHERE  (:query IS NULL OR :query = '' OR LOWER(h.city) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(h.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(h.address) LIKE LOWER(CONCAT('%', :query, '%')))
+        AND    (:city IS NULL OR :city = '' OR LOWER(h.city) = LOWER(:city))
+        AND    h.isApproved = true
+        GROUP BY h
+        HAVING (:minP IS NULL OR MIN(r.pricePerNight) >= :minP)
+        AND    (:maxP IS NULL OR MIN(r.pricePerNight) <= :maxP)
+        AND    (:minR IS NULL OR AVG(rv.rating) >= :minR)
+        ORDER BY
+            CASE WHEN :sortBy = 'price_asc'  THEN MIN(r.pricePerNight) END ASC,
+            CASE WHEN :sortBy = 'price_desc' THEN MIN(r.pricePerNight) END DESC,
+            CASE WHEN :sortBy = 'rating'     THEN AVG(rv.rating)       END DESC,
+            h.createdAt DESC
+        """,
+        countQuery = """
+        SELECT COUNT(h)
+        FROM   Hotel h
+               LEFT JOIN Room r ON r.hotelId = h.id
+               LEFT JOIN Review rv ON rv.hotelId = h.id
+        WHERE  (:query IS NULL OR :query = '' OR LOWER(h.city) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(h.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(h.address) LIKE LOWER(CONCAT('%', :query, '%')))
+        AND    (:city IS NULL OR :city = '' OR LOWER(h.city) = LOWER(:city))
+        AND    h.isApproved = true
+        GROUP BY h
+        HAVING (:minP IS NULL OR MIN(r.pricePerNight) >= :minP)
+        AND    (:maxP IS NULL OR MIN(r.pricePerNight) <= :maxP)
+        AND    (:minR IS NULL OR AVG(rv.rating) >= :minR)
+        """)
+    Page<Object[]> searchHotelsOptimized(
             @Param("query") String query,
             @Param("city") String city,
             @Param("minP") Double minPrice,
             @Param("maxP") Double maxPrice,
             @Param("minR") Integer rating,
+            @Param("sortBy") String sortBy,
             Pageable pageable);
+
+    @Query("""
+        SELECT h,
+               MIN(r.pricePerNight) AS minPrice,
+               AVG(rv.rating)       AS avgRating,
+               COUNT(rv)            AS reviewCount
+        FROM   Hotel h
+               LEFT JOIN Room r ON r.hotelId = h.id
+               LEFT JOIN Review rv ON rv.hotelId = h.id
+        WHERE  h.isApproved = true
+        AND    h.isFeatured = true
+        GROUP BY h
+        ORDER BY AVG(rv.rating) DESC, COUNT(rv) DESC
+        """)
+    Page<Object[]> findFeaturedHotelsRaw(Pageable pageable);
 
     @Query("SELECT DISTINCT h.city FROM Hotel h WHERE h.isApproved = true ORDER BY h.city")
     List<String> findAllCities();
