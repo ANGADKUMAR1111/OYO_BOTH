@@ -1,7 +1,7 @@
 # =============================================
 # Stage 1 — Build the JAR with Maven
 # =============================================
-FROM maven:3.9.6-eclipse-temurin-17 AS builder
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ RUN mvn clean package -DskipTests -B
 # =============================================
 # Stage 2 — Minimal runtime image
 # =============================================
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
