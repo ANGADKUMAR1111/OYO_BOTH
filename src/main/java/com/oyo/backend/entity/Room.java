@@ -8,7 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "rooms")
+@Table(name = "rooms", indexes = {
+    @Index(name = "idx_room_hotel_id", columnList = "hotelId"),
+    @Index(name = "idx_room_price_per_night", columnList = "pricePerNight")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -44,12 +47,14 @@ public class Room {
     @ElementCollection
     @CollectionTable(name = "room_amenities", joinColumns = @JoinColumn(name = "room_id"))
     @Column(name = "amenity")
+    @org.hibernate.annotations.BatchSize(size = 50)
     @Builder.Default
     private List<String> amenities = new ArrayList<>();
 
     @ElementCollection
     @CollectionTable(name = "room_images", joinColumns = @JoinColumn(name = "room_id"))
     @Column(name = "image_url")
+    @org.hibernate.annotations.BatchSize(size = 50)
     @Builder.Default
     private List<String> images = new ArrayList<>();
 

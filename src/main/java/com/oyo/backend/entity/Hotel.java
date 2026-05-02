@@ -10,7 +10,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "hotels")
+@Table(name = "hotels", indexes = {
+    @Index(name = "idx_hotel_city", columnList = "city"),
+    @Index(name = "idx_hotel_is_approved", columnList = "isApproved"),
+    @Index(name = "idx_hotel_is_featured", columnList = "isFeatured"),
+    @Index(name = "idx_hotel_host_id", columnList = "hostId")
+})
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
@@ -48,12 +53,14 @@ public class Hotel {
     @ElementCollection
     @CollectionTable(name = "hotel_amenities", joinColumns = @JoinColumn(name = "hotel_id"))
     @Column(name = "amenity")
+    @org.hibernate.annotations.BatchSize(size = 50)
     @Builder.Default
     private List<String> amenities = new ArrayList<>();
 
     @ElementCollection
     @CollectionTable(name = "hotel_images", joinColumns = @JoinColumn(name = "hotel_id"))
     @Column(name = "image_url")
+    @org.hibernate.annotations.BatchSize(size = 50)
     @Builder.Default
     private List<String> images = new ArrayList<>();
 

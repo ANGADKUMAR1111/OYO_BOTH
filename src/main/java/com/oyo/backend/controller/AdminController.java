@@ -25,20 +25,26 @@ public class AdminController {
     private final BookingRepository bookingRepository;
 
     @GetMapping("/stats")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
-        long totalUsers = userRepository.count();
-        long totalHotels = hotelRepository.countByIsApprovedTrue();
-        long pendingApprovals = hotelRepository.countByIsApprovedFalse();
-        long totalBookings = bookingRepository.count();
-        Long paidBookings = bookingRepository.getPaidBookingsCount();
-        Double totalRevenue = bookingRepository.getTotalRevenue();
+    @org.springframework.cache.annotation.Cacheable(value = "adminStats", key = "'global'")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() throws Exception {
+        java.util.concurrent.CompletableFuture<Long> usersFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> userRepository.count());
+        java.util.concurrent.CompletableFuture<Long> hotelsFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> hotelRepository.countByIsApprovedTrue());
+        java.util.concurrent.CompletableFuture<Long> pendingFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> hotelRepository.countByIsApprovedFalse());
+        java.util.concurrent.CompletableFuture<Long> bookingsFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> bookingRepository.count());
+        java.util.concurrent.CompletableFuture<Long> paidFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> bookingRepository.getPaidBookingsCount());
+        java.util.concurrent.CompletableFuture<Double> revenueFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> bookingRepository.getTotalRevenue());
+
+        java.util.concurrent.CompletableFuture.allOf(usersFuture, hotelsFuture, pendingFuture, bookingsFuture, paidFuture, revenueFuture).join();
+
+        Long paidBookings = paidFuture.get();
+        Double totalRevenue = revenueFuture.get();
 
         Map<String, Object> stats = Map.of(
-                "totalUsers", totalUsers,
-                "totalHotels", totalHotels,
-                "pendingApprovals", pendingApprovals,
-                "totalBookings", totalBookings,
-                "paidBookings", paidBookings != null ? paidBookings : 0,
+                "totalUsers", usersFuture.get(),
+                "totalHotels", hotelsFuture.get(),
+                "pendingApprovals", pendingFuture.get(),
+                "totalBookings", bookingsFuture.get(),
+                "paidBookings", paidBookings != null ? paidBookings : 0L,
                 "totalRevenue", totalRevenue != null ? totalRevenue : 0.0);
         return ResponseEntity.ok(ApiResponse.success(stats));
     }

@@ -44,9 +44,16 @@ public class RedisConfig {
         // Create specialized configurations if some caches need longer TTL
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultCacheConfig)
+                .withCacheConfiguration("adminStats", defaultCacheConfig.entryTtl(Duration.ofMinutes(1)))
                 .withCacheConfiguration("cities", defaultCacheConfig.entryTtl(Duration.ofHours(24))) // Cities rarely change
                 .withCacheConfiguration("featuredHotels", defaultCacheConfig.entryTtl(Duration.ofHours(2)))
                 .withCacheConfiguration("defaultHotels", defaultCacheConfig.entryTtl(Duration.ofHours(1)))
                 .build();
+    }
+
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean(RedisCacheManager.class)
+    public org.springframework.cache.CacheManager fallbackCacheManager() {
+        return new org.springframework.cache.concurrent.ConcurrentMapCacheManager();
     }
 }

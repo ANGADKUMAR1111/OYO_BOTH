@@ -64,7 +64,7 @@ public interface HotelRepository extends JpaRepository<Hotel, String> {
             @Param("sortBy") String sortBy,
             Pageable pageable);
 
-    @Query("""
+    @Query(value = """
         SELECT h,
                MIN(r.pricePerNight) AS minPrice,
                AVG(rv.rating)       AS avgRating,
@@ -76,6 +76,12 @@ public interface HotelRepository extends JpaRepository<Hotel, String> {
         AND    h.isFeatured = true
         GROUP BY h
         ORDER BY AVG(rv.rating) DESC, COUNT(rv) DESC
+        """,
+        countQuery = """
+        SELECT COUNT(h)
+        FROM   Hotel h
+        WHERE  h.isApproved = true
+        AND    h.isFeatured = true
         """)
     Page<Object[]> findFeaturedHotelsRaw(Pageable pageable);
 
