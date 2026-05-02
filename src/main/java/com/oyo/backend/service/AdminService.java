@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -26,12 +27,13 @@ public class AdminService {
         Long paidBookings = bookingRepository.getPaidBookingsCount();
         Double totalRevenue = bookingRepository.getTotalRevenue();
 
-        return Map.of(
-                "totalUsers", totalUsers,
-                "totalHotels", totalHotels,
-                "pendingApprovals", pendingApprovals,
-                "totalBookings", totalBookings,
-                "paidBookings", paidBookings != null ? paidBookings : 0L,
-                "totalRevenue", totalRevenue != null ? totalRevenue : 0.0);
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalUsers", totalUsers);
+        stats.put("totalHotels", totalHotels);
+        stats.put("pendingApprovals", pendingApprovals);
+        stats.put("totalBookings", totalBookings);
+        stats.put("paidBookings", paidBookings != null ? paidBookings : 0L);
+        stats.put("totalRevenue", totalRevenue != null ? totalRevenue : 0.0);
+        return stats;
     }
 }
