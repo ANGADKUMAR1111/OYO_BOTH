@@ -52,9 +52,9 @@ public class HotelController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(
+        return ResponseEntity.ok(ApiResponse.success(
                 hotelService.searchHotels(city, query, minPrice, maxPrice, rating, amenities, sort,
-                        checkIn, checkOut, guests, page, size, getUserId(auth)))));
+                        checkIn, checkOut, guests, page, size, getUserId(auth))));
     }
 
     @GetMapping("/{id}")
@@ -67,7 +67,7 @@ public class HotelController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(hotelService.getFeaturedHotels(page, size, getUserId(auth)))));
+        return ResponseEntity.ok(ApiResponse.success(hotelService.getFeaturedHotels(page, size, getUserId(auth))));
     }
 
     @GetMapping("/nearby")

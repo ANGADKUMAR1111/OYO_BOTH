@@ -13,6 +13,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import com.oyo.backend.dto.PageResponse;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -56,7 +57,7 @@ public class HotelService {
                key = "'search:' + #page + ':' + #size + ':' + #city + ':' + #sort", 
                condition = "#query == null && #minPrice == null && #maxPrice == null && #rating == null && #amenities == null && #checkIn == null && #checkOut == null && #guests == null",
                sync = true)
-    public Page<HotelResponse> searchHotelsInternal(String city, String query, Double minPrice, Double maxPrice,
+    public PageResponse<HotelResponse> searchHotelsInternal(String city, String query, Double minPrice, Double maxPrice,
             Integer rating, String sort, int page, int size) {
         
         Pageable pageable = PageRequest.of(page, size, Sort.unsorted());
@@ -70,20 +71,22 @@ public class HotelService {
             return buildBaseResponse(hotel, minP, avgR, revC, 0.0);
         }).collect(Collectors.toList());
 
-        return new PageImpl<>(responses, pageable, rows.getTotalElements());
+        return PageResponse.of(new PageImpl<>(responses, pageable, rows.getTotalElements()));
     }
 
-    public Page<HotelResponse> searchHotels(String city, String query, Double minPrice, Double maxPrice,
+    public PageResponse<HotelResponse> searchHotels(String city, String query, Double minPrice, Double maxPrice,
             Integer rating, String amenities, String sort,
             String checkIn, String checkOut, Integer guests,
             int page, int size, String userId) {
 
-        Page<HotelResponse> cachedPage = self.searchHotelsInternal(city, query, minPrice, maxPrice, rating, sort, page, size);
+        PageResponse<HotelResponse> cachedPage = self.searchHotelsInternal(city, query, minPrice, maxPrice, rating, sort, page, size);
         
         // Clone to avoid modifying cached objects
         List<HotelResponse> responseList = new ArrayList<>();
-        for (HotelResponse r : cachedPage.getContent()) {
-            responseList.add(r.toBuilder().build());
+        if (cachedPage.getContent() != null) {
+            for (HotelResponse r : cachedPage.getContent()) {
+                responseList.add(r.toBuilder().build());
+            }
         }
 
         // Advanced local filtering for amenities
@@ -96,7 +99,14 @@ public class HotelService {
 
         injectWishlistStatus(responseList, userId);
 
-        return new PageImpl<>(responseList, cachedPage.getPageable(), cachedPage.getTotalElements());
+        return PageResponse.<HotelResponse>builder()
+                .content(responseList)
+                .totalElements(cachedPage.getTotalElements())
+                .totalPages(cachedPage.getTotalPages())
+                .number(cachedPage.getNumber())
+                .size(cachedPage.getSize())
+                .last(cachedPage.isLast())
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -109,7 +119,7 @@ public class HotelService {
 
     @Transactional(readOnly = true)
     @Cacheable(value = "featuredHotels", key = "'featured:' + #page + ':' + #size", sync = true)
-    public Page<HotelResponse> getFeaturedHotelsInternal(int page, int size) {
+    public PageResponse<HotelResponse> getFeaturedHotelsInternal(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.unsorted());
         Page<Object[]> rows = hotelRepository.findFeaturedHotelsRaw(pageable);
         
@@ -121,17 +131,26 @@ public class HotelService {
             return buildBaseResponse(hotel, minP, avgR, revC, 0.0);
         }).collect(Collectors.toList());
 
-        return new PageImpl<>(responses, pageable, rows.getTotalElements());
+        return PageResponse.of(new PageImpl<>(responses, pageable, rows.getTotalElements()));
     }
 
-    public Page<HotelResponse> getFeaturedHotels(int page, int size, String userId) {
-        Page<HotelResponse> cachedPage = self.getFeaturedHotelsInternal(page, size);
+    public PageResponse<HotelResponse> getFeaturedHotels(int page, int size, String userId) {
+        PageResponse<HotelResponse> cachedPage = self.getFeaturedHotelsInternal(page, size);
         List<HotelResponse> responses = new ArrayList<>();
-        for (HotelResponse r : cachedPage.getContent()) {
-            responses.add(r.toBuilder().build());
+        if (cachedPage.getContent() != null) {
+            for (HotelResponse r : cachedPage.getContent()) {
+                responses.add(r.toBuilder().build());
+            }
         }
         injectWishlistStatus(responses, userId);
-        return new PageImpl<>(responses, cachedPage.getPageable(), cachedPage.getTotalElements());
+        return PageResponse.<HotelResponse>builder()
+                .content(responses)
+                .totalElements(cachedPage.getTotalElements())
+                .totalPages(cachedPage.getTotalPages())
+                .number(cachedPage.getNumber())
+                .size(cachedPage.getSize())
+                .last(cachedPage.isLast())
+                .build();
     }
 
     @Transactional(readOnly = true)

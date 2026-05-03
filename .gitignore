@@ -43,3 +43,6 @@ mvnw.cmd
 
 # --- Test Reports ---
 surefire-reports/
+
+# --- JMeter results ---
+jmeter/results/
