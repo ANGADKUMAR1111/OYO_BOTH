@@ -48,7 +48,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/rooms/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/search/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/health", "/health").permitAll()
                         // Admin only
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         // Host access
