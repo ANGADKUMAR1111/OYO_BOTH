@@ -49,8 +49,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
-    public ResponseEntity<ApiResponse<?>> handleMissingParams(
-            org.springframework.web.bind.MissingServletRequestParameterException ex) {
+    public ResponseEntity<ApiResponse<?>> handleMissingParams(org.springframework.web.bind.MissingServletRequestParameterException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error("Missing required parameter: " + ex.getParameterName()));
     }

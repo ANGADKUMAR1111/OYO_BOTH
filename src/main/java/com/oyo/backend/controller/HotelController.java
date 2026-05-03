@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import com.oyo.backend.dto.PageResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -38,7 +37,7 @@ public class HotelController {
 
     @GetMapping
     @Operation(summary = "Search hotels with filters")
-    public ResponseEntity<ApiResponse<PageResponse<HotelResponse>>> searchHotels(
+    public ResponseEntity<ApiResponse<Page<HotelResponse>>> searchHotels(
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String query,
             @RequestParam(required = false) Double minPrice,
@@ -52,9 +51,9 @@ public class HotelController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(
+        return ResponseEntity.ok(ApiResponse.success(
                 hotelService.searchHotels(city, query, minPrice, maxPrice, rating, amenities, sort,
-                        checkIn, checkOut, guests, page, size, getUserId(auth)))));
+                        checkIn, checkOut, guests, page, size, getUserId(auth))));
     }
 
     @GetMapping("/{id}")
@@ -63,11 +62,11 @@ public class HotelController {
     }
 
     @GetMapping("/featured")
-    public ResponseEntity<ApiResponse<PageResponse<HotelResponse>>> getFeatured(
+    public ResponseEntity<ApiResponse<Page<HotelResponse>>> getFeatured(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(hotelService.getFeaturedHotels(page, size, getUserId(auth)))));
+        return ResponseEntity.ok(ApiResponse.success(hotelService.getFeaturedHotels(page, size, getUserId(auth))));
     }
 
     @GetMapping("/nearby")
